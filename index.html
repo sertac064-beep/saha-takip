@@ -1,0 +1,1268 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Saha Takip - İhbar & İstasyon (Ücretsiz Harita)</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+
+    <style>
+        body { font-family: 'Segoe UI', Arial, sans-serif; background: #e9ecef; margin: 0; padding: 0; transition: background 0.3s, color 0.3s; }
+        #ana-icerik { display: none; padding: 15px; }
+        .box { background: white; padding: 20px; margin-bottom: 15px; border-radius: 8px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); transition: background 0.3s, color 0.3s; }
+        h3 { margin-top: 0; color: #0056b3; border-bottom: 3px solid #0056b3; padding-bottom: 10px; }
+        .tab-container { display: flex; gap: 5px; margin-bottom: 10px; }
+        .tab-btn { flex: 1; padding: 15px; cursor: pointer; background: #adb5bd; color: white; border: none; border-radius: 8px 8px 0 0; font-weight: bold; font-size: 16px; }
+        .tab-btn.active { background: #0056b3; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .stats { display: flex; gap: 10px; margin-bottom: 15px; }
+        .stat-card { background: white; padding: 10px; border-radius: 8px; flex: 1; text-align: center; border-top: 4px solid #0056b3; transition: background 0.3s; }
+        .stat-total { border-top-color: #0d6efd; background: #e7f1ff; }
+        .stat-pending { border-top-color: #ffc107; background: #fff3cd; }
+        .stat-completed { border-top-color: #198754; background: #d1e7dd; }
+        .stat-card b { display: block; font-size: 11px; color: #666; }
+        .stat-card span { font-size: 18px; font-weight: bold; }
+        
+        .main-layout { display: flex; gap: 15px; flex-wrap: wrap; }
+        .form-side { flex: 2; min-width: 300px; }
+        .map-side { flex: 1; min-width: 300px; height: 500px; border-radius: 8px; border: 2px solid #adb5bd; position: sticky; top: 15px; z-index: 1; }
+        #map { width: 100%; height: 100%; border-radius: 6px; }
+
+        .form-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        input, select, button, textarea { padding: 12px; border: 1px solid #ced4da; border-radius: 5px; font-size: 14px; width: 100%; box-sizing: border-box; }
+        button { background: #0056b3; color: white; border: none; cursor: pointer; font-weight: bold; transition: 0.3s; }
+        button:hover { opacity: 0.9; }
+        .btn-red { background: #dc3545; }
+        .btn-orange { background: #fd7e14; }
+        .btn-green { background: #198754; }
+        .btn-blue { background: #0d6efd; }
+        .btn-edit { background: #ffc107; color: #000; }
+        table { width: 100%; background: white; border-collapse: collapse; border-radius: 8px; overflow: hidden; border: 2px solid #adb5bd; margin-top: 10px; }
+        th, td { border: 1px solid #adb5bd; padding: 12px; text-align: center; font-size: 13px; }
+        th { background: #0056b3; color: white; cursor: pointer; }
+        
+        tbody tr { cursor: pointer; transition: background 0.2s; }
+        tbody tr:hover { filter: brightness(0.95); }
+
+        .gidildi { background: #d1e7dd !important; color: #0f5132; }
+        .bekleyon { background: #fff3cd !important; color: #664d03; }
+        .yedek-area { margin-top: 15px; padding: 20px; border-top: 2px dashed #0056b3; display: flex; gap: 15px; background: #f8f9fa; border-radius: 8px; }
+        .badge-acil1 { background: #dc3545; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; }
+        .badge-acil2 { background: #0d6efd; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; }
+        .badge-acil3 { background: #198754; color: white; padding: 4px 8px; border-radius: 4px; font-weight: bold; }
+
+        .settings-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+        .settings-box { border: 1px solid #ccc; padding: 10px; border-radius: 5px; }
+        .settings-list { list-style: none; padding: 0; max-height: 250px; overflow-y: auto; border: 1px solid #eee; margin-top: 10px; }
+        .settings-list li { display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #eee; font-size: 13px; background: #fff; cursor: default; }
+        .settings-list li.dragging { opacity: 0.5; background: #e9ecef; }
+        .settings-list li div { display: flex; gap: 5px; align-items: center; }
+        .settings-list li button { width: auto; padding: 4px 8px; font-size: 11px; }
+        .drag-handle { cursor: grab; color: #999; margin-right: 10px; font-size: 18px; }
+        
+        .onemli-ihbar { color: #dc3545 !important; font-weight: bold !important; }
+        select option.onemli-ihbar-opt { color: #dc3545; font-weight: bold; background: #fff0f0; }
+        select.ihbar-kirmizi-secili { color: #dc3545 !important; font-weight: bold !important; border: 2px solid #dc3545 !important; }
+
+        .pdf-filter-bar { background: #fff; padding: 20px; border-radius: 8px 8px 0 0; border-bottom: 2px solid #0056b3; display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; align-items: end; box-shadow: 0 4px 6px rgba(0,0,0,0.05); }
+        .pdf-filter-item { display: flex; flex-direction: column; gap: 5px; }
+        .pdf-filter-item label { font-size: 12px; font-weight: bold; color: #555; }
+        
+        .pdf-preview-container { background: #525659; padding: 40px 20px; display: flex; flex-direction: column; align-items: center; min-height: 600px; overflow: auto; }
+        #pdf-export-area { 
+            background: white; 
+            width: 297mm; 
+            min-height: 210mm; 
+            padding: 15mm; 
+            box-shadow: 0 0 30px rgba(0,0,0,0.5); 
+            box-sizing: border-box;
+            transform: scale(0.65); 
+            transform-origin: top center;
+            transition: transform 0.2s ease;
+        }
+        .pdf-header-area { display: flex; justify-content: space-between; align-items: center; border-bottom: 3px solid #000; padding-bottom: 15px; margin-bottom: 20px; }
+        .pdf-header-left h2 { margin: 0; color: #000; font-size: 26px; font-weight: 800; letter-spacing: -1px; }
+        .pdf-header-right { text-align: right; font-family: 'Courier New', Courier, monospace; font-size: 13px; line-height: 1.4; }
+        
+        #pdfTablo { width: 100%; border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
+        #pdfTablo th, #pdfTablo td { border: 1px solid #333; padding: 10px 8px; font-size: 12px; word-wrap: break-word; }
+        #pdfTablo th { background: #f0f0f0 !important; color: #000 !important; font-weight: bold; text-transform: uppercase; }
+        #pdfTablo tr:nth-child(even) { background: #fafafa; }
+
+        @media print { .no-print { display: none; } }
+
+        .update-area { background: #f1f3f5; border: 2px solid #0056b3; padding: 15px; border-radius: 8px; margin-top: 15px; }
+        .update-textarea { width: 100%; height: 100px; font-family: monospace; font-size: 10px; margin-bottom: 10px; }
+        
+        .zoom-controls { display: flex; gap: 2px; background: #343a40; padding: 3px; border-radius: 5px; }
+        .zoom-btn { width: 35px; height: 35px; font-size: 18px; border-radius: 4px; display: flex; align-items: center; justify-content: center; }
+
+        .modal-overlay { position: fixed; top:0; left:0; width:100%; height:100%; background: rgba(0,0,0,0.7); display:none; justify-content:center; align-items:center; z-index:1000; }
+        .modal-box { background: white; width: 90%; max-width: 600px; border-radius: 12px; overflow: hidden; animation: modalAcilis 0.3s ease; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        @keyframes modalAcilis { from { transform: translateY(-20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        .modal-header { background: #0056b3; color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
+        .modal-body { padding: 20px; max-height: 80vh; overflow-y: auto; }
+        .modal-footer { padding: 15px; background: #f8f9fa; text-align: right; border-top: 1px solid #eee; }
+        .detail-row { display: flex; border-bottom: 1px solid #eee; padding: 10px 0; font-size: 14px; }
+        .detail-label { flex: 1; font-weight: bold; color: #555; }
+        .detail-value { flex: 2; color: #000; }
+
+        body.dark-mode { background: #121212; color: #e0e0e0; }
+        body.dark-mode .box, body.dark-mode .stat-card, body.dark-mode table, body.dark-mode .modal-box { background: #1e1e1e; color: #e0e0e0; border-color: #333; }
+        body.dark-mode input, body.dark-mode select, body.dark-mode textarea { background: #2c2c2c; color: #fff; border-color: #444; }
+        body.dark-mode .tab-btn { background: #333; }
+        body.dark-mode .settings-list li { background: #2c2c2c; border-color: #444; color: #fff; }
+        body.dark-mode .yedek-area { background: #1e1e1e; border-color: #0056b3; }
+        
+        body.blue-mode { background: #001f3f; color: #fff; }
+        body.blue-mode .box, body.blue-mode .stat-card, body.blue-mode table { background: #003366; color: #fff; border-color: #0056b3; }
+        body.blue-mode input, body.blue-mode select, body.blue-mode textarea { background: #004080; color: #fff; border-color: #0056b3; }
+        
+        body.glass-mode { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); background-attachment: fixed; }
+        body.glass-mode .box { background: rgba(255, 255, 255, 0.2); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.3); color: #fff; }
+        body.glass-mode h3 { color: #fff; border-bottom-color: #fff; }
+
+        #gece-isigi-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255, 165, 0, 0.15); pointer-events: none; z-index: 9999; display: none; }
+
+        .quick-buttons { display: flex; flex-wrap: wrap; gap: 5px; margin-bottom: 10px; background: #f1f3f5; padding: 10px; border-radius: 8px; border: 1px solid #dee2e6; }
+        .q-btn { flex: 1; min-width: 80px; padding: 8px 5px; font-size: 11px; border-radius: 5px; border: none; cursor: pointer; font-weight: bold; transition: 0.2s; color: white; }
+        .q-btn-tur { background: #6c757d; }
+        .q-btn-tur.onemli { background: #dc3545; }
+        .q-btn-ekip { background: #fd7e14; }
+        .q-btn-kaynak { background: #4b7bec; }
+        .q-btn:active { transform: scale(0.95); }
+        .tarih-click { cursor: pointer; text-decoration: underline; color: #0056b3; }
+        .tarih-click:hover { color: #dc3545; }
+        
+        .copyright-box { text-align: center; padding: 15px; margin-top: 15px; border-top: 2px solid #eee; font-size: 12px; color: #777; background: #fdfdfd; border-radius: 0 0 8px 8px; }
+        .copyright-box b { color: #0056b3; }
+
+        /* Hızlı Düzenleme Stilleri */
+        .inline-edit { cursor: pointer; position: relative; }
+        .inline-edit:hover::after { content: ' ✏️'; font-size: 10px; opacity: 0.6; }
+        .limit-secici { padding: 8px; border-radius: 5px; border: 1px solid #ced4da; font-weight: bold; }
+    </style>
+</head>
+<body onload="baslat()">
+
+<div id="gece-isigi-overlay"></div>
+
+<div id="onizlemeModal" class="modal-overlay" onclick="modalKapat(event)">
+    <div class="modal-box" onclick="event.stopPropagation()">
+        <div class="modal-header">
+            <h4 style="margin:0">🔍 İhbar Detay Önizleme</h4>
+            <button onclick="document.getElementById('onizlemeModal').style.display='none'" style="background:none; border:none; color:white; font-size:24px; cursor:pointer;">&times;</button>
+        </div>
+        <div class="modal-body" id="modalIcerik"></div>
+        <div class="modal-footer">
+            <button class="btn-blue" onclick="document.getElementById('onizlemeModal').style.display='none'" style="width:auto; padding: 8px 20px;">Kapat</button>
+        </div>
+    </div>
+</div>
+
+<div id="ana-icerik">
+    <div class="tab-container">
+        <button class="tab-btn active" id="btn-ihbar" onclick="sekmeDegistir('ihbar')">📢 İhbar Kayıtları & Harita</button>
+        <button class="tab-btn" id="btn-pdf" onclick="sekmeDegistir('pdf')">📄 Tür Bazlı PDF Sorgulama</button>
+        <button class="tab-btn" id="btn-ayarlar" onclick="sekmeDegistir('ayarlar')">⚙️ Program Ayarları</button>
+    </div>
+
+    <div id="ihbar-sekme" class="tab-content active">
+        <div class="stats">
+            <div class="stat-card stat-total"><b>TOPLAM</b> <span id="sTop">0</span></div>
+            <div class="stat-card stat-pending"><b>BEKLEYEN</b> <span id="sBek">0</span></div>
+            <div class="stat-card stat-completed"><b>GİDİLEN</b> <span id="sGid">0</span></div>
+            <div class="stat-card" style="border-top-color: #6c757d;"><b>DİĞER</b> <span id="sDig">0</span></div>
+        </div>
+
+        <div class="main-layout">
+            <div class="form-side">
+                <div class="box">
+                    <h3 id="ihbarFormBaslik">📢 Yeni İhbar Kaydı</h3>
+                    
+                    <div id="quick-tur-container" class="quick-buttons"></div>
+                    <div id="quick-ekip-container" class="quick-buttons" style="background: #fff3cd;"></div>
+
+                    <div class="form-grid">
+                        <input id="ad" placeholder="Ad Soyad">
+                        <input id="telefon" placeholder="0(5__)___-____" maxlength="15" oninput="telefonFormatla(this)">
+                        <input id="aboneNo" placeholder="Tesisat/Abone No">
+                        <div style="grid-column: span 3; display: flex; gap: 5px;">
+                            <div style="flex: 2;">
+                                <input id="mahalleAra" placeholder="Mahalle Ara..." onkeyup="mahalleOtomatikFiltre(this.value)" style="margin-bottom: 5px; background: #f8f9fa;">
+                                <select id="mahalleSec" onchange="mahalleSecildi()">
+                                    <option value="">Mahalle Seçiniz</option>
+                                </select>
+                            </div>
+                            <div style="flex: 3; position: relative;">
+                                <input id="sokakInp" list="sokakHafiza" placeholder="Sokak/Cadde Adını Yazın..." oninput="adresBirlestir()" onblur="haritadaAdresAra()">
+                                <datalist id="sokakHafiza"></datalist>
+                            </div>
+                        </div>
+                        <div style="grid-column: span 3; display: flex; gap: 5px;">
+                            <input id="adres" placeholder="Tam Adres (Otomatik Oluşur)" readonly style="flex: 4; background: #f1f3f5;">
+                            <div style="flex: 1;">
+                                <input id="binaNoAra" placeholder="No Ara" oninput="numaraFiltrele('binaNo', this.value)" style="margin-bottom: 2px; padding: 5px; font-size: 11px; background: #f8f9fa;">
+                                <select id="binaNo" onchange="adresBirlestir(); haritadaAdresAra();"><option value="">No</option></select>
+                            </div>
+                            <div style="flex: 1;">
+                                <input id="daireNoAra" placeholder="Daire Ara" oninput="numaraFiltrele('daireNo', this.value)" style="margin-bottom: 2px; padding: 5px; font-size: 11px; background: #f8f9fa;">
+                                <select id="daireNo" onchange="adresBirlestir()"><option value="">Daire</option></select>
+                            </div>
+                        </div>
+                        <select id="ekipSecimi" style="grid-column: span 3; background: #fff3cd; border: 2px solid #ffc107; font-weight: bold;">
+                            <option value="">Gidecek Ekibi Seçiniz</option>
+                        </select>
+                        <select id="tur" style="grid-column: span 3;" onchange="turRenkKontrol(this)">
+                            <option value="">İhbar Türü Seçin</option>
+                        </select>
+                        <div style="grid-column: span 3;">
+                            <select id="ihbarKaynagi">
+                                <option value="">İhbar Kaynağı Seçin</option>
+                            </select>
+                            <div id="quick-kaynak-container" class="quick-buttons" style="margin-top: 5px; background: #e0e7ff;"></div>
+                        </div>
+                        <textarea id="aciklama" style="grid-column: span 3; height: 60px;" placeholder="Açıklama Yazın"></textarea>
+                    </div>
+                    <div style="display: flex; gap: 10px; margin-top: 15px;">
+                        <button id="ihbarKaydetBtn" onclick="kaydet()" style="flex: 3; background: #198754;">💾 KAYDET</button>
+                        <button onclick="temizle()" class="btn-orange" style="flex: 1;">Vazgeç/Temizle</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="map-side">
+                <div id="map"></div>
+                <div style="padding: 10px; background: #fff; font-size: 11px; color: #666; border-top:1px solid #ccc">
+                    * Pin'i sürükleyip bıraktığınızda adres otomatik dolar.
+                </div>
+            </div>
+        </div>
+
+        <div class="box" style="background: #cfe2ff; margin-top:20px">
+            <div style="display: grid; grid-template-columns: 1.5fr 1fr 1fr 1fr 1fr; gap: 10px; align-items: center;">
+                <input id="ara" placeholder="İsim/Adres/Abone Ara..." onkeyup="goster()">
+                <select id="fTur" onchange="goster(); turRenkKontrol(this)">
+                    <option value="">İhbar Türü Sorgula</option>
+                </select>
+                <select id="fZaman" onchange="goster()">
+                    <option value="0" selected>Tüm Zamanlar</option>
+                    <option value="1">Son 1 Gün</option>
+                    <option value="2">Son 2 Gün</option>
+                    <option value="3">Son 3 Gün</option>
+                    <option value="7">Son 1 Hafta</option>
+                    <option value="15">Son 15 Gün</option>
+                    <option value="30">Son 1 Ay</option>
+                </select>
+                <select id="fLimit" class="limit-secici" onchange="goster()">
+                    <option value="10">Son 10 Kayıt</option>
+                    <option value="20">Son 20 Kayıt</option>
+                    <option value="50" selected>Son 50 Kayıt</option>
+                    <option value="100">Son 100 Kayıt</option>
+                    <option value="200">Son 200 Kayıt</option>
+                    <option value="300">Son 300 Kayıt</option>
+                    <option value="1000000">Hepsi</option>
+                </select>
+                <button onclick="goster()" style="background: #fd7e14; color: white; border: none; font-weight: bold; height: 100%;">SORGULA</button>
+            </div>
+        </div>
+
+        <div style="overflow-x: auto;">
+            <table id="anaTablo">
+                <thead>
+                    <tr>
+                        <th onclick="tabloyuSirala()" style="cursor:pointer">Tarih <span id="sortIcon">[-]</span></th>
+                        <th>Abone No</th><th>Kaynak</th><th>Ekip</th><th>Ad Soyad</th><th>Telefon</th>
+                        <th>Adres Bilgisi</th><th>Tür</th><th>Açıklama</th><th>Durum</th><th>İşlem</th>
+                    </tr>
+                </thead>
+                <tbody id="tb"></tbody>
+            </table>
+        </div>
+
+        <div class="yedek-area">
+            <button onclick="yedekAl()" style="background: #0056b3; flex: 1;">📤 Verileri Yedekle (Başka Bilgisayar İçin)</button>
+            <button onclick="document.getElementById('yedekDosya').click()" style="background: #6c757d; flex: 1;">📥 Yedek Yükle (Veri Aktar)</button>
+            <input type="file" id="yedekDosya" style="display:none" accept=".json" onchange="yedekYukle(event)">
+        </div>
+    </div>
+
+    <div id="pdf-sekme" class="tab-content">
+        <div class="box" style="padding:0; overflow:hidden;">
+            <div class="pdf-filter-bar no-print">
+                <div class="pdf-filter-item">
+                    <label>🔍 İhbar Türü</label>
+                    <select id="pdfTurSecimi" onchange="pdfOnizlemeYap()"></select>
+                </div>
+                <div class="pdf-filter-item">
+                    <label>📌 Durum</label>
+                    <select id="pdfDurumSecimi" onchange="pdfOnizlemeYap()"></select>
+                </div>
+                <div class="pdf-filter-item">
+                    <label>🗂️ Görünüm</label>
+                    <div class="zoom-controls">
+                        <button class="zoom-btn btn-blue" onclick="pdfZoom(0.1)">+</button>
+                        <button class="zoom-btn btn-red" onclick="pdfZoom(-0.1)">-</button>
+                    </div>
+                </div>
+                <button onclick="pdfOnizlemeYap()" style="background: #fd7e14; height: 45px;">👁️ ÖNİZLE</button>
+                <button onclick="pdfIndir()" style="background: #198754; height: 45px;">📥 PDF İNDİR</button>
+            </div>
+
+            <div class="pdf-preview-container">
+                <div id="pdf-export-area">
+                    <div class="pdf-header-area">
+                        <div class="pdf-header-left">
+                            <h2>SAHA TAKİP RAPORU</h2>
+                            <div style="font-size:12px; color:#555; margin-top:5px;">Uşak Doğalgaz Saha Takip Pro v2.0</div>
+                        </div>
+                        <div class="pdf-header-right">
+                            <div id="pdfRaporTarihi"></div>
+                            <div id="pdfFiltreBilgi" style="color:#0056b3; font-weight:bold;">Tüm Kayıtlar</div>
+                        </div>
+                    </div>
+
+                    <table id="pdfTablo">
+                        <thead>
+                            <tr>
+                                <th style="width: 14%;">Tarih/Saat</th>
+                                <th style="width: 10%;">Abone No</th>
+                                <th style="width: 14%;">Ad Soyad</th>
+                                <th style="width: 42%;">Açık Adres Bilgisi</th>
+                                <th style="width: 20%;">İhbar Türü</th>
+                            </tr>
+                        </thead>
+                        <tbody id="pdfTb">
+                            <tr><td colspan="5" style="text-align:center; padding:30px; font-style:italic;">Veri yükleniyor...</td></tr>
+                        </tbody>
+                    </table>
+                    
+                    <div style="margin-top:20px; text-align:right; font-size:10px; color:#999; border-top:1px solid #eee; padding-top:10px;">
+                        * Bu rapor dijital ortamda Saha Takip yazılımı tarafından oluşturulmuştur.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="ayarlar-sekme" class="tab-content">
+        <div class="box">
+            <h3>☀️ Görünüm ve Tema Ayarları</h3>
+            <div class="settings-grid">
+                <div class="settings-box" style="grid-column: span 2; display: flex; gap: 10px; align-items: center; justify-content: center; background: #f8f9fa;">
+                    <button onclick="temaDegistir('default')" class="btn-blue" style="width: auto;">Standart</button>
+                    <button onclick="temaDegistir('dark-mode')" style="width: auto; background: #222;">Karanlık</button>
+                    <button onclick="temaDegistir('blue-mode')" style="width: auto; background: #003366;">Gece Mavisi</button>
+                    <button onclick="temaDegistir('glass-mode')" style="width: auto; background: linear-gradient(45deg, #764ba2, #667eea);">Şeffaf (Glass)</button>
+                    <div style="border-left: 1px solid #ccc; padding-left: 15px; margin-left: 5px;">
+                        <label style="cursor:pointer; font-weight:bold; color: #fd7e14;">
+                            <input type="checkbox" id="geceIsigiCheck" onchange="geceIsigiToggle(this.checked)" style="width:auto;"> 🌙 Gece Işığı (Amber)
+                        </label>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="box">
+            <h3>⚙️ Sistem Ayarları ve Özelleştirme</h3>
+            <div class="settings-grid">
+                <div class="settings-box">
+                    <h4>🔐 Giriş Şifresi</h4>
+                    <input id="setSifre" type="password" placeholder="Yeni Şifre">
+                    <button onclick="sifreGuncelle()" style="margin-top:5px" class="btn-green">Şifreyi Güncelle</button>
+                </div>
+                <div class="settings-box">
+                    <h4>🚒 Ekipleri Yönet</h4>
+                    <div style="display:flex; gap:5px">
+                        <input id="newEkip" placeholder="Ekip Adı (Örn: Acil 4)">
+                        <button onclick="ayaraEkle('ekipler', 'newEkip')" style="width:auto">+</button>
+                    </div>
+                    <ul id="list-ekipler" class="settings-list"></ul>
+                </div>
+                
+                <div class="settings-box">
+                    <h4>✅ Durum Metinlerini Yönet</h4>
+                    <p style="font-size:11px; color:#666">Kayıtların durum butonlarını özelleştirin ve yeni durumlar ekleyin.</p>
+                    <div style="display:flex; gap:5px">
+                        <input id="newDurum" placeholder="Yeni Durum (Örn: İptal Edildi)">
+                        <button onclick="ayaraEkle('durumListesi', 'newDurum')" style="width:auto">+</button>
+                    </div>
+                    <ul id="list-durumListesi" class="settings-list"></ul>
+                </div>
+
+                <div class="settings-box" style="grid-column: span 2;">
+                    <h4>📋 İhbar Türlerini Yönet</h4>
+                    <div style="display:flex; gap:5px">
+                        <input id="newTur" placeholder="Yeni İhbar Türü">
+                        <label style="font-size:11px; display:flex; align-items:center;"><input type="checkbox" id="newTurOnemli" style="width:auto; margin-right:3px"> Önemli (Kırmızı)</label>
+                        <button onclick="turEkle()" style="width:auto">+</button>
+                    </div>
+                    <ul id="list-turler" class="settings-list" style="max-height:400px"></ul>
+                    <p style="font-size:11px; color:#666; margin-top:5px">☰ simgesinden tutup sürükleyerek sıralamayı değiştirebilirsiniz. <b>Tür ismine tıklayarak "Önemli" (Kırmızı) durumunu değiştirebilirsiniz.</b></p>
+                </div>
+                <div class="settings-box">
+                    <h4>📞 İhbar Kaynaklarını Yönet</h4>
+                    <div style="display:flex; gap:5px">
+                        <input id="newKaynak" placeholder="Yeni Kaynak">
+                        <button onclick="ayaraEkle('kaynaklar', 'newKaynak')" style="width:auto">+</button>
+                    </div>
+                    <ul id="list-kaynaklar" class="settings-list"></ul>
+                </div>
+
+                <div class="settings-box">
+                    <h4>⚡ Hızlı Buton Yönetimi (Tür)</h4>
+                    <p style="font-size:11px; color:#666">Formun üstündeki hızlı seçim butonlarında nelerin görüneceğini seçin.</p>
+                    <button onclick="hizliTurGuncelle()" class="btn-blue" style="font-size:12px;">Tür Görünümünü Kaydet</button>
+                    <div style="margin-top:10px; max-height:200px; overflow-y:auto; border:1px solid #eee; padding:5px; font-size:12px;">
+                        <b>Hangi Türler Görünsün?</b>
+                        <div id="check-turler" style="margin-bottom:10px"></div>
+                    </div>
+                </div>
+
+                <div class="settings-box">
+                    <h4>⚡ Hızlı Buton Yönetimi (Kaynak)</h4>
+                    <p style="font-size:11px; color:#666">Kaynaklar için hızlı seçim butonlarını buradan yönetin.</p>
+                    <button onclick="hizliKaynakGuncelle()" class="btn-blue" style="font-size:12px;">Kaynak Görünümünü Kaydet</button>
+                    <div style="margin-top:10px; max-height:200px; overflow-y:auto; border:1px solid #eee; padding:5px; font-size:12px;">
+                        <b>Hangi Kaynaklar Görünsün?</b>
+                        <div id="check-kaynaklar"></div>
+                    </div>
+                </div>
+
+                <div class="settings-box">
+                    <h4>🏘️ Mahalle Gruplarını Düzenle</h4>
+                    <p style="font-size:11px; color:red">* Mahalleler JSON formatında saklanır. Bilginiz yoksa dokunmayınız.</p>
+                    <textarea id="setMahalleler" style="height:150px; font-family:monospace; font-size:10px"></textarea>
+                    <button onclick="mahalleKaydet()" style="margin-top:5px" class="btn-blue">Mahalleleri Güncelle</button>
+                </div>
+
+                <div class="settings-box" style="grid-column: span 2; border: 2px solid #0056b3;">
+                    <h4 style="color: #0056b3;">🚀 Sistem Çekirdek Güncelleme</h4>
+                    <p style="font-size: 11px; color: #555;">Yeni bir özellik eklendiğinde size verilen kodun tamamını buraya yapıştırıp sistemi anında güncelleyebilirsiniz. <b>Verileriniz korunur.</b></p>
+                    <textarea id="kernelUpdateInput" class="update-textarea" placeholder="Yeni HTML kodunu buraya yapıştırın..."></textarea>
+                    <button onclick="sistemiGuncelle()" style="background: #0056b3;">SİSTEMİ GÜNCELLE VE YENİDEN BAŞLAT</button>
+                </div>
+            </div>
+            
+            <div class="copyright-box">
+                <b>Saha Takip Pro</b> | Versiyon: <span id="verBilgi">2.0.6</span><br>
+                Tasarım ve Kodlama: <b>Hasan Sertaç Teper</b> © 2026<br>
+                <small>Tüm hakları saklıdır. İzinsiz çoğaltılamaz ve dağıtılamaz.</small>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+let currentZoom = 0.65;
+const PROGRAM_VERSION = "2.0.6"; // Versiyon güncellendi
+const DEVELOPER_NAME = "Hasan Sertaç Teper";
+
+function pdfZoom(val) {
+    currentZoom += val;
+    if(currentZoom < 0.2) currentZoom = 0.2;
+    if(currentZoom > 1.5) currentZoom = 1.5;
+    document.getElementById('pdf-export-area').style.transform = `scale(${currentZoom})`;
+}
+
+function hizliSec(listeId, deger) {
+    const el = document.getElementById(listeId);
+    if(el) {
+        el.value = deger;
+        if(listeId === 'tur') turRenkKontrol(el);
+        if(listeId === 'mahalleSec') mahalleSecildi();
+    }
+}
+
+function sistemiGuncelle() {
+    const yeniKod = document.getElementById('kernelUpdateInput').value.trim();
+    if (!yeniKod || !yeniKod.toLowerCase().includes("<!doctype html>")) {
+        alert("Geçersiz kod! Lütfen size verilen kodun tamamını yapıştırın.");
+        return;
+    }
+    if (confirm("Sistem çekirdeği güncellenecek. Kayıtlı tüm verileriniz ve ayarlarınız korunacaktır. Devam edilsin mi?")) {
+        try {
+            const blob = new Blob([yeniKod], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'index.html'; 
+            a.click();
+            alert("Yeni çekirdek dosyası 'index.html' olarak indirildi. Lütfen mevcut kullandığınız dosya ile yer değiştirin.");
+        } catch (e) { alert("Güncelleme sırasında bir hata oluştu!"); }
+    }
+}
+
+function temaDegistir(tema) {
+    document.body.classList.remove('dark-mode', 'blue-mode', 'glass-mode');
+    if(tema !== 'default') document.body.classList.add(tema);
+    aktifAyarlar.seciliTema = tema;
+    ayarlariKaydet();
+}
+
+function geceIsigiToggle(aktif) {
+    document.getElementById('gece-isigi-overlay').style.display = aktif ? 'block' : 'none';
+    aktifAyarlar.geceIsigi = aktif;
+    ayarlariKaydet();
+}
+
+let sortAsc = false; 
+let map, marker;
+let seciliKonum = [38.6742, 29.4059]; 
+
+const varsayilanAyarlar = {
+    sifre: "1234",
+    ekipler: ["Acil 1", "Acil 2", "Acil 3"],
+    turler: [
+        {ad: "Kazı", onemli: true}, {ad: "SK Koku", onemli: true}, {ad: "DK Koku", onemli: true}, 
+        {ad: "MBK Koku", onemli: true}, {ad: "Hat Hasarı", onemli: true}, {ad: "Yangın", onemli: true},
+        {ad: "Patlama", onemli: true},
+        {ad: "Basınç Yüksek", onemli: false}, {ad: "Basınç Düşük", onemli: false}, 
+        {ad: "Gaz Alarm Cihazı Devrede", onemli: false}, {ad: "SK Kutusunda Hasar", onemli: false}, 
+        {ad: "Gaz Yokluğu", onemli: false}, {ad: "Gaz Kesme", onemli: false}, 
+        {ad: "Gaz Açma", onemli: false}, {ad: "Sayaç Dönmüyor", onemli: false}, 
+        {ad: "Sayaç Okunamaması", onemli: false}, {ad: "Dilekçe İşlemi", onemli: false}, 
+        {ad: "Sayaç Sesi/Hızlı Dönme", onemli: false}, {ad: "Cihaz Gürültülü Çalışıyor", onemli: false}, 
+        {ad: "Diğer", onemli: false}
+    ],
+    kaynaklar: ["Abone", "3. Şahıs", "Belediye", "İtfaiye", "Polis", "TEDAŞ", "Telekom", "Diğer"],
+    mahalleler: { 
+        "Merkez Mahalleler (Çarşı)": ["İslice Mahallesi", "Kurtuluş Mahallesi", "Ünalan Mahallesi", "Durak Mahallesi", "Köme Mahallesi", "Sarayaltı Mahallesi", "Özdemir Mahallesi", "Işık Mahallesi"], 
+        "Gelişim Bölgeleri (Yeni)": ["Kemalöz Mahallesi", "Cumhuriyet Mahallesi", "Atatürk Mahallesi", "Fevzi Çakmak Mahallesi", "Dikilitaş Mahallesi", "Mehmet Akif Ersoy Mahallesi"], 
+        "Diğer Mahalleler": ["Aybey Mahallesi", "Elmalıdere Mahallesi", "Bozkurt Mahallesi", "Karaağaç Mahallesi", "Fatih Mahallesi", "Kalfa Mahallesi", "Bölme Mahallesi", "Hacıkadem Mahallesi"], 
+        "Dış Bölgeler & İlçeler": ["Banaz", "Ulubey", "Eşme", "Sivaslı", "Karahallı"]
+    },
+    durumListesi: ["❌ Bekliyor", "✅ Gidildi"],
+    hizliButonlar: {
+        turler: ["Kazı", "SK Koku", "DK Koku", "MBK Koku", "Hat Hasarı", "Yangın", "Patlama", "Gaz Yokluğu", "Gaz Açma"],
+        kaynaklar: ["Abone", "3. Şahıs", "Belediye", "İtfaiye", "Polis"]
+    },
+    seciliTema: "default",
+    geceIsigi: false
+};
+
+let aktifAyarlar = JSON.parse(localStorage.sahaTakipAyarlar || JSON.stringify(varsayilanAyarlar));
+if(!aktifAyarlar.hizliButonlar) aktifAyarlar.hizliButonlar = varsayilanAyarlar.hizliButonlar;
+if(!aktifAyarlar.kaynaklar) aktifAyarlar.kaynaklar = varsayilanAyarlar.kaynaklar;
+if(!aktifAyarlar.hizliButonlar.kaynaklar) aktifAyarlar.hizliButonlar.kaynaklar = varsayilanAyarlar.hizliButonlar.kaynaklar;
+
+const mahalleKonumlari = {
+    "İslice Mahallesi": [38.6781, 29.4039], 
+    "Kurtuluş Mahallesi": [38.6756, 29.4024], 
+    "Atatürk Mahallesi": [38.6715, 29.3888], 
+    "Cumhuriyet Mahallesi": [38.6852, 29.4082], 
+    "Kemalöz Mahallesi": [38.6621, 29.3941], 
+    "Fevzi Çakmak Mahallesi": [38.6942, 29.3921], 
+    "Ünalan Mahallesi": [38.6785, 29.4098], 
+    "Durak Mahallesi": [38.6712, 29.4158], 
+    "Sarayaltı Mahallesi": [38.6811, 29.4252], 
+    "Mehmet Akif Ersoy Mahallesi": [38.6625, 29.4181], 
+    "Dikilitaş Mahallesi": [38.6851, 29.3951], 
+    "Bölme Mahallesi": [38.6255, 29.3855], 
+    "Hacıkadem Mahallesi": [38.7155, 29.4255], 
+    "Karaağaç Mahallesi": [38.6955, 29.4155], 
+    "Özdemir Mahallesi": [38.6748, 29.4011], 
+    "Köme Mahallesi": [38.6782, 29.4018], 
+    "Işık Mahallesi": [38.6695, 29.3955], 
+    "Aybey Mahallesi": [38.6822, 29.3995], 
+    "Elmalıdere Mahallesi": [38.6655, 29.4105], 
+    "Bozkurt Mahallesi": [38.6755, 29.4205], 
+    "Fatih Mahallesi": [38.6925, 29.4005], 
+    "Kalfa Mahallesi": [38.6555, 29.4055], 
+    "Banaz": [38.7360, 29.7565], 
+    "Ulubey": [38.4192, 29.2934], 
+    "Eşme": [38.3995, 28.9665], 
+    "Sivaslı": [38.5050, 29.6645], 
+    "Karahallı": [38.3180, 29.5315]
+};
+
+function baslat() { 
+    const sifre = aktifAyarlar.sifre; 
+    let giris = prompt("Sisteme erişmek için şifreyi giriniz:"); 
+    if (giris === sifre) { 
+        document.getElementById('ana-icerik').style.display = "block"; 
+        if(aktifAyarlar.seciliTema) temaDegistir(aktifAyarlar.seciliTema);
+        if(aktifAyarlar.geceIsigi) {
+            document.getElementById('geceIsigiCheck').checked = true;
+            geceIsigiToggle(true);
+        }
+        haritayıYukle(); 
+        ayarListeleriniDoldur();
+        hizliButonlariDoldur();
+        mahalleListesiYukle(); 
+        numaraListesiYukle("binaNo", 250, "No"); 
+        numaraListesiYukle("daireNo", 100, "Daire"); 
+        hafizadanSokaklariYukle();
+        goster(); 
+        document.getElementById('verBilgi').innerText = PROGRAM_VERSION;
+    } else { alert("Hatalı şifre!"); location.reload(); }
+}
+
+function hizliButonlariDoldur() {
+    const tCont = document.getElementById('quick-tur-container');
+    const eCont = document.getElementById('quick-ekip-container');
+    const kCont = document.getElementById('quick-kaynak-container');
+    
+    tCont.innerHTML = ""; eCont.innerHTML = ""; kCont.innerHTML = "";
+
+    aktifAyarlar.hizliButonlar.turler.forEach(tAd => {
+        let tObj = aktifAyarlar.turler.find(x => x.ad === tAd);
+        if(tObj) {
+            let cls = tObj.onemli ? "q-btn q-btn-tur onemli" : "q-btn q-btn-tur";
+            tCont.innerHTML += `<button type="button" class="${cls}" onclick="hizliSec('tur', '${tAd}')">${tAd.toUpperCase()}</button>`;
+        }
+    });
+
+    const renkler = ["#dc3545", "#0d6efd", "#198754", "#fd7e14", "#6f42c1"];
+    aktifAyarlar.ekipler.forEach((ekip, idx) => {
+        let bg = renkler[idx % renkler.length];
+        eCont.innerHTML += `<button type="button" class="q-btn q-btn-ekip" style="background:${bg}" onclick="hizliSec('ekipSecimi', '${ekip}')">${ekip.toUpperCase()}</button>`;
+    });
+
+    const gosterilecekKaynaklar = (aktifAyarlar.hizliButonlar.kaynaklar && aktifAyarlar.hizliButonlar.kaynaklar.length > 0) 
+        ? aktifAyarlar.hizliButonlar.kaynaklar 
+        : varsayilanAyarlar.hizliButonlar.kaynaklar;
+
+    gosterilecekKaynaklar.forEach(kAd => {
+        kCont.innerHTML += `<button type="button" class="q-btn q-btn-kaynak" onclick="hizliSec('ihbarKaynagi', '${kAd}')">${kAd.toUpperCase()}</button>`;
+    });
+}
+
+function sekmeDegistir(s) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.getElementById(s + '-sekme').classList.add('active');
+    document.getElementById('btn-' + s).classList.add('active');
+    if(s === 'ayarlar') ayarPaneliniYukle();
+    if(s === 'pdf') {
+        pdfFiltreDoldur();
+        pdfOnizlemeYap();
+    }
+}
+
+function ayarListeleriniDoldur() {
+    const fill = (id, list) => {
+        const el = document.getElementById(id);
+        const filterEl = (id === 'tur' ? document.getElementById('fTur') : null);
+        const pdfTurEl = (id === 'tur' ? document.getElementById('pdfTurSecimi') : null);
+        if(id === 'ekipSecimi') el.innerHTML = `<option value="">Gidecek Ekibi Seçiniz</option>`;
+        else if(id === 'tur') el.innerHTML = `<option value="">İhbar Türü Seçin</option>`;
+        else if(id === 'ihbarKaynagi') el.innerHTML = `<option value="">İhbar Kaynağı Seçin</option>`;
+        if(filterEl) filterEl.innerHTML = `<option value="">İhbar Türü Sorgula</option>`;
+        if(pdfTurEl) pdfTurEl.innerHTML = `<option value="">Tüm Türler</option>`;
+        list.forEach(item => {
+            let val = (typeof item === 'object') ? item.ad : item;
+            let classOnemli = (item.onemli) ? 'class="onemli-ihbar-opt"' : '';
+            el.innerHTML += `<option value="${val}" ${classOnemli}>${(id==='ekipSecimi' && val.includes('Acil')) ? '🔴 ' : ''}${val}</option>`;
+            if(filterEl) filterEl.innerHTML += `<option value="${val}" ${classOnemli}>${val}</option>`;
+            if(pdfTurEl) pdfTurEl.innerHTML += `<option value="${val}" ${classOnemli}>${val}</option>`;
+        });
+    };
+    fill('ekipSecimi', aktifAyarlar.ekipler);
+    fill('tur', aktifAyarlar.turler);
+    fill('ihbarKaynagi', aktifAyarlar.kaynaklar);
+}
+
+function pdfFiltreDoldur() {
+    const dSec = document.getElementById('pdfDurumSecimi');
+    dSec.innerHTML = `<option value="">Tüm Durumlar</option>`;
+    aktifAyarlar.durumListesi.forEach(d => { dSec.innerHTML += `<option value="${d}">${d}</option>`; });
+}
+
+function turRenkKontrol(selectElement) {
+    const secilen = selectElement.value;
+    const turAyari = aktifAyarlar.turler.find(t => t.ad === secilen);
+    if(turAyari && turAyari.onemli) selectElement.classList.add('ihbar-kirmizi-secili');
+    else selectElement.classList.remove('ihbar-kirmizi-secili');
+}
+
+function ayarPaneliniYukle() {
+    document.getElementById('setSifre').value = aktifAyarlar.sifre;
+    document.getElementById('setMahalleler').value = JSON.stringify(aktifAyarlar.mahalleler, null, 2);
+    
+    const cTur = document.getElementById('check-turler');
+    cTur.innerHTML = "";
+    aktifAyarlar.turler.forEach(t => {
+        let checked = (aktifAyarlar.hizliButonlar.turler || []).includes(t.ad) ? "checked" : "";
+        cTur.innerHTML += `<label style="display:block;"><input type="checkbox" value="${t.ad}" class="hizli-tur-cb" ${checked}> ${t.ad}</label>`;
+    });
+
+    const cKay = document.getElementById('check-kaynaklar');
+    cKay.innerHTML = "";
+    aktifAyarlar.kaynaklar.forEach(k => {
+        let val = (typeof k === 'object') ? k.ad : k;
+        let checked = (aktifAyarlar.hizliButonlar.kaynaklar || []).includes(val) ? "checked" : "";
+        cKay.innerHTML += `<label style="display:block;"><input type="checkbox" value="${val}" class="hizli-kay-cb" ${checked}> ${val}</label>`;
+    });
+
+    const renderList = (key) => {
+        const ul = document.getElementById('list-' + key);
+        ul.innerHTML = "";
+        aktifAyarlar[key].forEach((item, index) => {
+            let label = (typeof item === 'object') ? item.ad : item;
+            let style = (item.onemli) ? 'style="color:red; font-weight:bold"' : '';
+            let draggableAttr = (key === 'turler') ? 'draggable="true" ondragstart="dragStart(event, '+index+')" ondragover="dragOver(event)" ondrop="drop(event, '+index+')"' : '';
+            let dragHandle = (key === 'turler') ? '<span class="drag-handle">☰</span>' : '';
+            ul.innerHTML += `<li ${draggableAttr} data-index="${index}">${dragHandle}<span ${style} ${key === 'turler' ? `onclick="turDurumDegistir(${index})"` : ''} style="cursor:pointer; flex:1;">${label} ${item.onemli ? '(Önemli)' : ''}</span> 
+                <div><button onclick="ayardaDuzenle('${key}', ${index})" class="btn-edit">✏️</button><button onclick="ayardanSil('${key}', ${index})" class="btn-red">Sil</button></div></li>`;
+        });
+    };
+    renderList('ekipler'); renderList('turler'); renderList('kaynaklar'); renderList('durumListesi');
+}
+
+function hizliTurGuncelle() {
+    let seciliTurler = [];
+    document.querySelectorAll('.hizli-tur-cb:checked').forEach(cb => seciliTurler.push(cb.value));
+    aktifAyarlar.hizliButonlar.turler = seciliTurler;
+    ayarlariKaydet();
+    hizliButonlariDoldur();
+    alert("Tür hızlı butonları güncellendi!");
+}
+
+function hizliKaynakGuncelle() {
+    let seciliKaynaklar = [];
+    document.querySelectorAll('.hizli-kay-cb:checked').forEach(cb => seciliKaynaklar.push(cb.value));
+    aktifAyarlar.hizliButonlar.kaynaklar = seciliKaynaklar;
+    ayarlariKaydet();
+    hizliButonlariDoldur();
+    alert("Kaynak hızlı butonları güncellendi!");
+}
+
+function ayardaDuzenle(key, index) {
+    let currentVal = (typeof aktifAyarlar[key][index] === 'object') ? aktifAyarlar[key][index].ad : aktifAyarlar[key][index];
+    let newVal = prompt("Yeni ismi giriniz:", currentVal);
+    if(newVal && newVal.trim() !== "") {
+        if(typeof aktifAyarlar[key][index] === 'object') { aktifAyarlar[key][index].ad = newVal; }
+        else { 
+            if(key === 'durumListesi') {
+                let data = JSON.parse(localStorage.ihbarData || "[]");
+                data.forEach(v => { if(v.durum === currentVal) v.durum = newVal; });
+                localStorage.ihbarData = JSON.stringify(data);
+            }
+            aktifAyarlar[key][index] = newVal; 
+        }
+        ayarlariKaydet(); ayarPaneliniYukle(); ayarListeleriniDoldur(); hizliButonlariDoldur(); goster();
+    }
+}
+
+function turDurumDegistir(index) {
+    aktifAyarlar.turler[index].onemli = !aktifAyarlar.turler[index].onemli;
+    ayarlariKaydet(); ayarPaneliniYukle(); ayarListeleriniDoldur(); hizliButonlariDoldur();
+}
+
+let draggedIdx = null;
+function dragStart(e, index) { draggedIdx = index; e.dataTransfer.effectAllowed = 'move'; e.target.classList.add('dragging'); }
+function dragOver(e) { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; }
+function drop(e, targetIdx) {
+    e.preventDefault();
+    if (draggedIdx === null || draggedIdx === targetIdx) return;
+    const item = aktifAyarlar.turler.splice(draggedIdx, 1)[0];
+    aktifAyarlar.turler.splice(targetIdx, 0, item);
+    ayarlariKaydet(); ayarPaneliniYukle(); ayarListeleriniDoldur(); hizliButonlariDoldur();
+}
+
+function ayaraEkle(key, inputId) {
+    const val = document.getElementById(inputId).value.trim();
+    if(val) { aktifAyarlar[key].push(val); ayarlariKaydet(); document.getElementById(inputId).value = ""; ayarPaneliniYukle(); ayarListeleriniDoldur(); hizliButonlariDoldur(); goster(); }
+}
+
+function turEkle() {
+    const val = document.getElementById('newTur').value.trim();
+    const onemli = document.getElementById('newTurOnemli').checked;
+    if(val) { aktifAyarlar.turler.push({ad: val, onemli: onemli}); ayarlariKaydet(); document.getElementById('newTur').value = ""; document.getElementById('newTurOnemli').checked = false; ayarPaneliniYukle(); ayarListeleriniDoldur(); hizliButonlariDoldur(); }
+}
+
+function ayardanSil(key, index) {
+    if(confirm("Bu seçeneği silmek istediğinize emin misiniz?")) { aktifAyarlar[key].splice(index, 1); ayarlariKaydet(); ayarPaneliniYukle(); ayarListeleriniDoldur(); hizliButonlariDoldur(); goster(); }
+}
+
+function sifreGuncelle() {
+    const yeni = document.getElementById('setSifre').value;
+    if(yeni) { aktifAyarlar.sifre = yeni; ayarlariKaydet(); alert("Şifre güncellendi!"); }
+}
+
+function mahalleKaydet() {
+    try { const data = JSON.parse(document.getElementById('setMahalleler').value); aktifAyarlar.mahalleler = data; ayarlariKaydet(); mahalleListesiYukle(); alert("Mahalleler güncellendi!"); } catch(e) { alert("JSON formatı hatalı!"); }
+}
+
+function ayarlariKaydet() { localStorage.sahaTakipAyarlar = JSON.stringify(aktifAyarlar); }
+
+function haritayıYukle() {
+    map = L.map('map').setView(seciliKonum, 13);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+    marker = L.marker(seciliKonum, {draggable: true}).addTo(map);
+    map.on('click', function(e) { marker.setLatLng(e.latlng); seciliKonum = [e.latlng.lat, e.latlng.lng]; konumdanAdresBul(e.latlng.lat, e.latlng.lng); });
+    marker.on('dragend', function(e) { let pos = marker.getLatLng(); seciliKonum = [pos.lat, pos.lng]; konumdanAdresBul(pos.lat, pos.lng); });
+}
+
+async function konumdanAdresBul(lat, lon) {
+    try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&addressdetails=1`, { headers: { 'Accept-Language': 'tr' } });
+        const data = await res.json();
+        if(data && data.address) {
+            let addr = data.address;
+            let mahalle = addr.suburb || addr.neighbourhood || addr.village || addr.town || "";
+            let sokak = addr.road || "";
+            let no = addr.house_number || "";
+            if(mahalle) { document.getElementById('mahalleAra').value = mahalle; mahalleOtomatikFiltre(mahalle); }
+            if(sokak) { document.getElementById('sokakInp').value = sokak; sokakHafizayaEkle(sokak); }
+            if(no) { numaraFiltrele('binaNo', no); }
+            adresBirlestir();
+        }
+    } catch (e) { console.error("Adres bulunamadı", e); }
+}
+
+function mahalleSecildi() {
+    let m = document.getElementById('mahalleSec').value;
+    if(mahalleKonumlari[m]) { 
+        let koord = mahalleKonumlari[m]; 
+        seciliKonum = koord; 
+        map.setView(koord, 16); 
+        marker.setLatLng(koord); 
+        if(["Banaz", "Ulubey", "Eşme", "Sivaslı", "Karahallı"].includes(m)) {
+             adresBirlestir();
+             return; 
+        }
+    }
+    adresBirlestir(); focusSokak(); haritadaAdresAra();
+}
+
+async function haritadaAdresAra() {
+    let m = document.getElementById('mahalleSec').value;
+    let s = document.getElementById('sokakInp').value;
+    if (m === "" && s === "") return;
+    
+    let query = `${s} ${m} Uşak`.trim();
+    let viewbox = "28.8,38.8,30.0,38.2"; 
+
+    try {
+        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&viewbox=${viewbox}&bounded=1`);
+        const data = await response.json();
+        if (data && data.length > 0) { 
+            let lat = parseFloat(data[0].lat); 
+            let lon = parseFloat(data[0].lon); 
+            seciliKonum = [lat, lon]; 
+            map.setView(seciliKonum, 17); 
+            marker.setLatLng(seciliKonum); 
+        }
+    } catch (error) { console.error("Harita arama hatası:", error); }
+}
+
+function haritadaGoster(id) {
+    let data = JSON.parse(localStorage.ihbarData || "[]");
+    let k = data.find(x => x.id === id);
+    if(k && k.konum) { map.setView(k.konum, 17); marker.setLatLng(k.konum); seciliKonum = k.konum; window.scrollTo(0,0); } else { alert("Bu kayda ait konum verisi yok!"); }
+}
+
+function telefonFormatla(input) { 
+    let rawValue = input.value.replace(/\D/g, ''); 
+    if (rawValue.startsWith('0')) { rawValue = rawValue.substring(1); } 
+    let formatted = '0'; 
+    if (rawValue.length > 0) { formatted += '(' + rawValue.substring(0, 3); } 
+    if (rawValue.length >= 4) { formatted += ')' + rawValue.substring(3, 6); } 
+    if (rawValue.length >= 7) { formatted += '-' + rawValue.substring(6, 10); } 
+    input.value = formatted;
+}
+
+function mahalleListesiYukle(filtre = "") { 
+    const sel = document.getElementById("mahalleSec"); 
+    if(!sel) return; 
+    sel.innerHTML = '<option value="">Mahalle Seçiniz</option>'; 
+    let searchVal = filtre.replace('i','İ').replace('ı','I').toUpperCase('tr-TR');
+    
+    let autoSelect = null;
+    for (let grup in aktifAyarlar.mahalleler) { 
+        let eslesenler = aktifAyarlar.mahalleler[grup].filter(m => 
+            m.replace('i','İ').replace('ı','I').toUpperCase('tr-TR').includes(searchVal)
+        ); 
+        if (eslesenler.length > 0) { 
+            let optG = document.createElement("optgroup"); optG.label = grup; 
+            eslesenler.forEach(m => { 
+                let opt = document.createElement("option"); opt.value = m; opt.innerText = m; optG.appendChild(opt); 
+                if(searchVal.length >= 2 && m.replace('i','İ').replace('ı','I').toUpperCase('tr-TR').startsWith(searchVal)) autoSelect = m;
+            }); 
+            sel.appendChild(optG); 
+        } 
+    }
+    if(autoSelect) { sel.value = autoSelect; mahalleSecildi(); }
+}
+
+function mahalleOtomatikFiltre(val) { mahalleListesiYukle(val); }
+function focusSokak() { setTimeout(() => { document.getElementById('sokakInp').focus(); }, 50); }
+
+function hafizadanSokaklariYukle() {
+    const hafiza = JSON.parse(localStorage.sokakHafizasi || "[]");
+    const list = document.getElementById("sokakHafiza"); list.innerHTML = "";
+    hafiza.forEach(s => { let opt = document.createElement("option"); opt.value = s; list.appendChild(opt); });
+}
+
+function sokakHafizayaEkle(sokak) {
+    if(!sokak || sokak.length < 2) return;
+    let hafiza = JSON.parse(localStorage.sokakHafizasi || "[]");
+    if(!hafiza.includes(sokak)) { hafiza.push(sokak); localStorage.sokakHafizasi = JSON.stringify(hafiza); hafizadanSokaklariYukle(); }
+}
+
+function numaraListesiYukle(id, adet, tag, filtre = "") { 
+    const sel = document.getElementById(id); 
+    if(!sel) return; 
+    sel.innerHTML = `<option value="">${tag}</option>`; 
+    let foundCount = 0; 
+    for(let i=1; i<=adet; i++) { 
+        if(filtre === "" || i.toString() === filtre || i.toString().startsWith(filtre)) { 
+            let opt = document.createElement("option"); opt.value = i; opt.innerText = i; sel.appendChild(opt); foundCount++; 
+        } 
+    } 
+    if(filtre !== "" && foundCount >= 1) { for(let j=0; j<sel.options.length; j++) { if(sel.options[j].value === filtre) { sel.selectedIndex = j; adresBirlestir(); break; } } } 
+}
+
+function numaraFiltrele(id, deger) { numaraListesiYukle(id, (id==="binaNo"?250:100), (id==="binaNo"?"No":"Daire"), deger); }
+
+function adresBirlestir() { 
+    let m = document.getElementById('mahalleSec').value; 
+    let s = document.getElementById('sokakInp').value; 
+    let n = document.getElementById('binaNo').value; 
+    let d = document.getElementById('daireNo').value; 
+    
+    if (editIndex !== -1 && !m && !s && n) {
+        let currentFullAdres = document.getElementById('adres').value;
+        if(currentFullAdres.includes("No:")) {
+             document.getElementById('adres').value = currentFullAdres.replace(/No:\d+/, "No:" + n);
+             return;
+        }
+    }
+
+    let birlesik = "";
+    if(m) birlesik += m + " ";
+    if(s) birlesik += s + " ";
+    if(n) birlesik += "No:" + n + " ";
+    if(d) birlesik += "D:" + d;
+    
+    if(birlesik.trim() !== "") {
+        document.getElementById('adres').value = birlesik.trim();
+    }
+}
+
+let editIndex = -1;
+function kaydet() { 
+    let simdi = new Date(); 
+    let liste = JSON.parse(localStorage.ihbarData || "[]"); 
+    let sokakAdi = document.getElementById('sokakInp').value;
+    
+    adresBirlestir();
+    
+    let k = { 
+        id: (editIndex === -1) ? Date.now() : liste[editIndex].id, 
+        tarihMs: (editIndex === -1) ? simdi.getTime() : liste[editIndex].tarihMs, 
+        tarih: (editIndex === -1) ? simdi.toLocaleString('tr-TR') : liste[editIndex].tarih, 
+        ad: document.getElementById('ad').value || "-", 
+        telefon: document.getElementById('telefon').value || "-", 
+        aboneNo: document.getElementById('aboneNo').value || "-", 
+        ihbarKaynagi: document.getElementById('ihbarKaynagi').value || "-", 
+        ekip: document.getElementById('ekipSecimi').value || "Belirsiz", 
+        adres: document.getElementById('adres').value || "-", 
+        tur: document.getElementById('tur').value || "Diğer", 
+        aciklama: document.getElementById('aciklama').value || "-", 
+        durum: (editIndex === -1) ? (aktifAyarlar.durumListesi[0] || "Bekliyor") : liste[editIndex].durum,
+        konum: seciliKonum
+    };
+    
+    if(editIndex === -1) { 
+        liste.push(k); 
+    } else { 
+        let idx = liste.findIndex(x => x.id === k.id); 
+        if(idx !== -1) liste[idx] = k; 
+        editIndex = -1; 
+    } 
+    
+    sokakHafizayaEkle(sokakAdi);
+    localStorage.ihbarData = JSON.stringify(liste); 
+    temizle(); 
+    sortAsc = false; 
+    goster();
+}
+
+// Hızlı Düzenleme Fonksiyonları
+function hızlıDuzenle(id, alan) {
+    let data = JSON.parse(localStorage.ihbarData || "[]");
+    let index = data.findIndex(x => x.id === id);
+    if (index === -1) return;
+    
+    let currentVal = data[index][alan];
+    let newVal;
+
+    if (alan === 'ekip') {
+        let ekipler = aktifAyarlar.ekipler.join(', ');
+        newVal = prompt(`Yeni Ekibi Yazın (${ekipler}):`, currentVal);
+    } else if (alan === 'telefon') {
+        newVal = prompt("Yeni Telefon No:", currentVal);
+    } else if (alan === 'adres') {
+        newVal = prompt("Yeni Adres:", currentVal);
+    }
+
+    if (newVal !== null && newVal.trim() !== "") {
+        data[index][alan] = newVal;
+        localStorage.ihbarData = JSON.stringify(data);
+        goster();
+    }
+}
+
+function goster() { 
+    let tb = document.getElementById("tb"); if(!tb) return; tb.innerHTML = ""; 
+    let data = JSON.parse(localStorage.ihbarData || "[]"); 
+    let ara = document.getElementById("ara").value.toLowerCase(); 
+    let fTur = document.getElementById("fTur").value; 
+    let fZamanInput = document.getElementById("fZaman");
+    let fZaman = fZamanInput ? parseInt(fZamanInput.value) : 0; 
+    let limit = parseInt(document.getElementById("fLimit").value) || 50;
+    let simdi = Date.now(); 
+
+    data.sort((a, b) => { 
+        let valA = a.tarihMs || 0; 
+        let valB = b.tarihMs || 0; 
+        return sortAsc ? valA - valB : valB - valA; 
+    });
+
+    let bekleyen = 0, gidilen = 0, diger = 0;
+    const bekleyenMetni = aktifAyarlar.durumListesi[0];
+    const gidilenMetni = aktifAyarlar.durumListesi[1];
+    
+    let gosterilenSayac = 0;
+
+    data.forEach((v) => { 
+        let aramaUygun = v.ad.toLowerCase().includes(ara) || v.adres.toLowerCase().includes(ara) || v.aboneNo.includes(ara); 
+        let turUygun = fTur === "" || v.tur === fTur; 
+        let zamanUygun = (fZaman === 0) || (simdi - v.tarihMs <= (fZaman * 86400000)); 
+        
+        if(aramaUygun && turUygun && zamanUygun) { 
+            // İstatistikleri tüm filtrelenmiş veri üzerinden hesapla
+            if(v.durum === bekleyenMetni) bekleyen++; 
+            else if(v.durum === gidilenMetni) gidilen++;
+            else diger++;
+
+            // Ama sadece limit kadarını tabloya bas
+            if (gosterilenSayac < limit) {
+                let cls = (v.durum === bekleyenMetni) ? 'bekleyon' : (v.durum === gidilenMetni ? 'gidildi' : ''); 
+                let ekipIdx = aktifAyarlar.ekipler.indexOf(v.ekip);
+                let ekipClass = (ekipIdx === 0) ? "badge-acil1" : (ekipIdx === 1) ? "badge-acil2" : (ekipIdx === 2) ? "badge-acil3" : "";
+                let turObj = aktifAyarlar.turler.find(t => t.ad === v.tur);
+                let turStyle = (turObj && turObj.onemli) ? 'class="onemli-ihbar"' : '';
+                
+                tb.innerHTML += `<tr class="${cls}" onclick="onizle(${v.id})"> 
+                    <td onclick="event.stopPropagation(); saatiDegistir(${v.id})" class="tarih-click">${v.tarih}</td> 
+                    <td>${v.aboneNo}</td> 
+                    <td>${v.ihbarKaynagi}</td> 
+                    <td onclick="event.stopPropagation(); ekipDongusu(${v.id})" class="inline-edit" title="Tıklayarak ekibi değiştir"><span class="${ekipClass}">${v.ekip}</span></td> 
+                    <td>${v.ad}</td> 
+                    <td onclick="event.stopPropagation(); hızlıDuzenle(${v.id}, 'telefon')" class="inline-edit">${v.telefon}</td> 
+                    <td onclick="event.stopPropagation(); hızlıDuzenle(${v.id}, 'adres')" class="inline-edit" style="font-size:11px">${v.adres}</td> 
+                    <td ${turStyle}>${v.tur}</td> 
+                    <td>${v.aciklama}</td> 
+                    <td><button onclick="event.stopPropagation(); durumDongusu(${v.id})" style="width:auto; padding:5px 10px; font-size:11px">${v.durum}</button></td> 
+                    <td><div style="display:flex; gap:2px">
+                        <button onclick="event.stopPropagation(); haritadaGoster(${v.id})">📍</button> 
+                        <button onclick="event.stopPropagation(); ihbarDuzenle(${v.id})" class="btn-edit">✏️</button> 
+                        <button onclick="event.stopPropagation(); sil(${v.id})" class="btn-red">🗑️</button>
+                    </div></td> </tr>`; 
+                gosterilenSayac++;
+            }
+        } 
+    }); 
+    document.getElementById("sTop").innerText = data.filter(v => (fTur === "" || v.tur === fTur) && (fZaman === 0 || simdi - v.tarihMs <= fZaman * 86400000)).length; 
+    document.getElementById("sBek").innerText = bekleyen; 
+    document.getElementById("sGid").innerText = gidilen; 
+    document.getElementById("sDig").innerText = diger; 
+    document.getElementById("sortIcon").innerText = sortAsc ? "[+]" : "[-]";
+}
+
+function saatiDegistir(id) {
+    let data = JSON.parse(localStorage.ihbarData || "[]");
+    let target = data.find(x => x.id === id);
+    if(target) {
+        let yeniTarih = prompt("Yeni Tarih ve Saati Giriniz (Örn: 12.04.2026 14:30):", target.tarih);
+        if(yeniTarih) {
+            target.tarih = yeniTarih;
+            try {
+                let parts = yeniTarih.split(' ');
+                let dateParts = parts[0].split('.');
+                let timeParts = parts[1].split(':');
+                let d = new Date(dateParts[2], dateParts[1]-1, dateParts[0], timeParts[0], timeParts[1]);
+                if(!isNaN(d.getTime())) target.tarihMs = d.getTime();
+            } catch(e) { console.log("Ms çevrim hatası"); }
+            localStorage.ihbarData = JSON.stringify(data);
+            goster();
+        }
+    }
+}
+
+function onizle(id) {
+    let data = JSON.parse(localStorage.ihbarData || "[]");
+    let ihbar = data.find(x => x.id === id);
+    if (!ihbar) return;
+    let icerik = `
+        <div class="detail-row"><div class="detail-label">Tarih:</div><div class="detail-value">${ihbar.tarih}</div></div>
+        <div class="detail-row"><div class="detail-label">Abone No:</div><div class="detail-value">${ihbar.aboneNo}</div></div>
+        <div class="detail-row"><div class="detail-label">Ad Soyad:</div><div class="detail-value">${ihbar.ad}</div></div>
+        <div class="detail-row"><div class="detail-label">Telefon:</div><div class="detail-value">${ihbar.telefon}</div></div>
+        <div class="detail-row"><div class="detail-label">Adres:</div><div class="detail-value">${ihbar.adres}</div></div>
+        <div class="detail-row"><div class="detail-label">İhbar Türü:</div><div class="detail-value"><b>${ihbar.tur}</b></div></div>
+        <div class="detail-row"><div class="detail-label">Ekip:</div><div class="detail-value">${ihbar.ekip}</div></div>
+        <div class="detail-row"><div class="detail-label">Kaynak:</div><div class="detail-value">${ihbar.ihbarKaynagi}</div></div>
+        <div class="detail-row"><div class="detail-label">Durum:</div><div class="detail-value">${ihbar.durum}</div></div>
+        <div class="detail-row" style="border:none;"><div class="detail-label">Açıklama:</div><div class="detail-value">${ihbar.aciklama}</div></div>
+    `;
+    document.getElementById('modalIcerik').innerHTML = icerik;
+    document.getElementById('onizlemeModal').style.display = 'flex';
+}
+
+function modalKapat(e) { if(e.target.id === 'onizlemeModal') { document.getElementById('onizlemeModal').style.display = 'none'; } }
+
+function durumDongusu(id) {
+    let data = JSON.parse(localStorage.ihbarData || "[]");
+    let target = data.find(x => x.id === id);
+    if(target) {
+        let currentIndex = aktifAyarlar.durumListesi.indexOf(target.durum);
+        let nextIndex = (currentIndex + 1) % aktifAyarlar.durumListesi.length;
+        target.durum = aktifAyarlar.durumListesi[nextIndex];
+        localStorage.ihbarData = JSON.stringify(data);
+        goster();
+    }
+}
+
+function ekipDongusu(id) {
+    let data = JSON.parse(localStorage.ihbarData || "[]");
+    let target = data.find(x => x.id === id);
+    if(target) {
+        let currentIndex = aktifAyarlar.ekipler.indexOf(target.ekip);
+        let nextIndex = currentIndex === -1 ? 0 : (currentIndex + 1) % aktifAyarlar.ekipler.length;
+        target.ekip = aktifAyarlar.ekipler[nextIndex];
+        localStorage.ihbarData = JSON.stringify(data);
+        goster();
+    }
+}
+
+function tabloyuSirala() { sortAsc = !sortAsc; goster(); }
+function sil(id) { if(confirm("Silinsin mi?")) { let mainData = JSON.parse(localStorage.ihbarData).filter(x => x.id !== id); localStorage.ihbarData = JSON.stringify(mainData); goster(); } }
+
+function ihbarDuzenle(id) { 
+    let mainData = JSON.parse(localStorage.ihbarData); 
+    let k = mainData.find(x => x.id === id); 
+    editIndex = mainData.findIndex(x => x.id === id); 
+    
+    document.getElementById('ad').value = k.ad; 
+    document.getElementById('telefon').value = k.telefon; 
+    document.getElementById('aboneNo').value = k.aboneNo; 
+    document.getElementById('ekipSecimi').value = k.ekip; 
+    const turEl = document.getElementById('tur'); 
+    turEl.value = k.tur; 
+    turRenkKontrol(turEl);
+    document.getElementById('ihbarKaynagi').value = k.ihbarKaynagi; 
+    document.getElementById('aciklama').value = k.aciklama; 
+    document.getElementById('adres').value = k.adres; 
+    
+    for (let grup in aktifAyarlar.mahalleler) {
+        aktifAyarlar.mahalleler[grup].forEach(m => {
+            if(k.adres.includes(m)) {
+                document.getElementById('mahalleSec').value = m;
+                document.getElementById('mahalleAra').value = m;
+            }
+        });
+    }
+
+    let parts = k.adres.split(" ");
+    let sokakName = "";
+    parts.forEach(p => { if(!p.includes("Mahallesi") && !p.includes("No:") && !p.includes("D:")) sokakName += p + " "; });
+    document.getElementById('sokakInp').value = sokakName.trim();
+
+    let noMatch = k.adres.match(/No:(\d+)/);
+    if(noMatch) numaraFiltrele('binaNo', noMatch[1]);
+    
+    let daireMatch = k.adres.match(/D:(\d+)/);
+    if(daireMatch) numaraFiltrele('daireNo', daireMatch[1]);
+
+    if(k.konum) { seciliKonum = k.konum; map.setView(seciliKonum, 17); marker.setLatLng(seciliKonum); } 
+    window.scrollTo(0,0);
+}
+
+function temizle() { 
+    document.querySelectorAll('#ihbar-sekme input, #ihbar-sekme select, #ihbar-sekme textarea').forEach(el => { 
+        if(el.id !== 'fZaman' && el.id !== 'fLimit') { 
+            el.value = ""; 
+            if(el.id === 'tur' || el.id === 'fTur') el.classList.remove('ihbar-kirmizi-secili'); 
+        } 
+    }); 
+    editIndex = -1; 
+    mahalleListesiYukle(); 
+    numaraListesiYukle("binaNo", 250, "No"); 
+    numaraListesiYukle("daireNo", 100, "Daire"); 
+    seciliKonum = [38.6742, 29.4059]; 
+    map.setView(seciliKonum, 13); 
+    marker.setLatLng(seciliKonum); 
+    goster();
+}
+
+function yedekAl() { 
+    const veri = { ihbarlar: localStorage.ihbarData || "[]", sokakHafizasi: localStorage.sokakHafizasi || "[]", ayarlar: localStorage.sahaTakipAyarlar || "{}" }; 
+    const blob = new Blob([JSON.stringify(veri)], { type: 'application/json' }); 
+    const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `SahaTakip_Yedek_${new Date().toLocaleDateString('tr-TR')}.json`; a.click();
+}
+
+function yedekYukle(event) { 
+    const dosya = event.target.files[0]; if (!dosya) return; 
+    const okuyucu = new FileReader(); 
+    okuyucu.onload = function(e) { 
+        try { 
+            const data = JSON.parse(e.target.result); 
+            if(confirm("Tüm mevcut veriler silinip yedek yüklenecek?")) { 
+                localStorage.ihbarData = data.ihbarlar; 
+                localStorage.sokakHafizasi = data.sokakHafizasi; 
+                if(data.ayarlar) localStorage.sahaTakipAyarlar = data.ayarlar; 
+                location.reload(); 
+            }
+        } catch (err) { alert("Geçersiz yedek dosyası!"); } 
+    }; okuyucu.readAsText(dosya);
+}
+
+function pdfOnizlemeYap() {
+    let tb = document.getElementById("pdfTb");
+    let secilenTur = document.getElementById("pdfTurSecimi").value;
+    let secilenDurum = document.getElementById("pdfDurumSecimi").value;
+    let data = JSON.parse(localStorage.ihbarData || "[]");
+    data.sort((a, b) => (b.tarihMs || 0) - (a.tarihMs || 0)); 
+    tb.innerHTML = "";
+    let filtreliListe = data.filter(v => {
+        let turUygun = (secilenTur === "" || v.tur === secilenTur);
+        let durumUygun = (secilenDurum === "" || v.durum === secilenDurum);
+        return turUygun && durumUygun;
+    });
+    document.getElementById("pdfFiltreBilgi").innerText = (secilenTur || "Tüm") + " / " + (secilenDurum || "Tüm Durumlar");
+    if(filtreliListe.length === 0) { 
+        tb.innerHTML = "<tr><td colspan='5' style='text-align:center; padding:50px;'>Seçilen filtrelere uygun kayıt bulunamadı.</td></tr>"; 
+        return; 
+    }
+    filtreliListe.forEach(v => { 
+        tb.innerHTML += `<tr>
+            <td style="font-weight:bold;">${v.tarih}</td>
+            <td>${v.aboneNo}</td>
+            <td>${v.ad}</td>
+            <td style="text-align:left; font-size:11px;">${v.adres}</td>
+            <td style="font-weight:bold; color:#d63031;">${v.tur}</td>
+        </tr>`; 
+    });
+    document.getElementById("pdfRaporTarihi").innerText = "Rapor Tarihi: " + new Date().toLocaleString('tr-TR');
+}
+
+function pdfIndir() {
+    const element = document.getElementById('pdf-export-area');
+    const originalTransform = element.style.transform;
+    element.style.transform = "none";
+    const opt = { margin: 5, filename: 'Saha_Raporu.pdf', image: { type: 'jpeg', quality: 1.0 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } };
+    html2pdf().set(opt).from(element).save().then(() => { element.style.transform = originalTransform; });
+}
+</script>
+</body>
+</html>
