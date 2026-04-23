@@ -439,15 +439,7 @@
                     <textarea id="setMahalleler" style="height:150px; font-family:monospace; font-size:10px"></textarea>
                     <button onclick="mahalleKaydet()" style="margin-top:5px" class="btn-blue">Mahalleleri Güncelle</button>
                 </div>
-<div class="settings-box" style="grid-column: span 2; background: #e7f1ff; border: 2px solid #0d6efd; margin-bottom: 15px; padding:15px; border-radius:8px;">
-    <h4 style="color: #0d6efd; margin-top:0;">☁️ Bulut Senkronizasyonu (GitHub)</h4>
-    <p style="font-size: 11px; color: #555;">Verileri internete yedekleyip diğer cihazlardan çekebilirsiniz.</p>
-    <div style="display: flex; gap: 10px;">
-        <button onclick="bulutaGonder()" style="background: #0d6efd; flex: 1; color:white; border:none; padding:10px; border-radius:5px; cursor:pointer;">📤 Buluta Yedekle</button>
-        <button onclick="buluttanCek()" style="background: #198754; flex: 1; color:white; border:none; padding:10px; border-radius:5px; cursor:pointer;">📥 Buluttan Güncelle</button>
-    </div>
-    <small style="display:block; margin-top:8px; color:#666;">ID: <span id="gistIdLabel" style="font-family:monospace; font-weight:bold;">${GIST_ID || 'Yok'}</span></small>
-</div>
+
                 <div class="settings-box" style="grid-column: span 2; border: 2px solid #0056b3;">
                     <h4 style="color: #0056b3;">🚀 Sistem Çekirdek Güncelleme</h4>
                     <p style="font-size: 11px; color: #555;">Yeni bir özellik eklendiğinde size verilen kodun tamamını buraya yapıştırıp sistemi anında güncelleyebilirsiniz. <b>Verileriniz korunur.</b></p>
@@ -468,8 +460,7 @@
 
 <script>
 let currentZoom = 0.65;
-const PROGRAM_VERSION = "2.0.6"; // Versiyon güncellendiconst GITHUB_TOKEN = "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";
-let GIST_ID = localStorage.getItem("sahaTakipGistId") || "";
+const PROGRAM_VERSION = "2.0.6"; // Versiyon güncellendi
 const DEVELOPER_NAME = "Hasan Sertaç Teper";
 
 function pdfZoom(val) {
@@ -1271,63 +1262,6 @@ function pdfIndir() {
     element.style.transform = "none";
     const opt = { margin: 5, filename: 'Saha_Raporu.pdf', image: { type: 'jpeg', quality: 1.0 }, html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' } };
     html2pdf().set(opt).from(element).save().then(() => { element.style.transform = originalTransform; });
-}async function tumVerileriTopla() {
-    return new Promise((resolve) => {
-        const transaction = db.transaction(["sokakHafiza"], "readonly");
-        const sokakStore = transaction.objectStore("sokakHafiza");
-        let veriPaketi = {
-            ihbarData: localStorage.getItem('ihbarData'),
-            sahaTakipAyarlar: localStorage.getItem('sahaTakipAyarlar'),
-            sokakHafiza: [],
-            yedekTarihi: new Date().toLocaleString('tr-TR')
-        };
-        sokakStore.getAll().onsuccess = (e) => {
-            veriPaketi.sokakHafiza = e.target.result;
-            resolve(veriPaketi);
-        };
-    });
-}
-
-async function bulutaGonder() {
-    const veri = await tumVerileriTopla();
-    const payload = {
-        description: "Saha Takip Yedek",
-        public: false,
-        files: { "saha_takip_data.json": { content: JSON.stringify(veri) } }
-    };
-    const url = GIST_ID ? `https://api.github.com/gists/${GIST_ID}` : "https://api.github.com/gists";
-    try {
-        const res = await fetch(url, {
-            method: GIST_ID ? "PATCH" : "POST",
-            headers: { "Authorization": `token ${GITHUB_TOKEN}`, "Content-Type": "application/json" },
-            body: JSON.stringify(payload)
-        });
-        const result = await res.json();
-        if (result.id) {
-            localStorage.setItem("sahaTakipGistId", result.id);
-            GIST_ID = result.id;
-            document.getElementById('gistIdLabel').innerText = GIST_ID;
-            alert("✅ Buluta başarıyla yedeklendi!");
-        }
-    } catch (e) { alert("❌ Hata: " + e.message); }
-}
-
-async function buluttanCek() {
-    if (!GIST_ID || !confirm("Cihazdaki veriler silinip buluttaki veriler yüklenecek. Emin misin?")) return;
-    try {
-        const res = await fetch(`https://api.github.com/gists/${GIST_ID}`, {
-            headers: { "Authorization": `token ${GITHUB_TOKEN}` }
-        });
-        const result = await res.json();
-        const veri = JSON.parse(result.files["saha_takip_data.json"].content);
-        localStorage.setItem('ihbarData', veri.ihbarData);
-        localStorage.setItem('sahaTakipAyarlar', veri.sahaTakipAyarlar);
-        const transaction = db.transaction(["sokakHafiza"], "readwrite");
-        const sokakStore = transaction.objectStore("sokakHafiza");
-        sokakStore.clear();
-        veri.sokakHafiza.forEach(s => sokakStore.add(s));
-        transaction.oncomplete = () => { alert("✅ Başarıyla güncellendi. Sayfa yenileniyor..."); location.reload(); };
-    } catch (e) { alert("❌ Hata: " + e.message); }
 }
 </script>
 </body>
