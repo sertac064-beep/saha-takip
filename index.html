@@ -333,7 +333,7 @@
                     <div class="pdf-header-area">
                         <div class="pdf-header-left">
                             <h2>SAHA TAKİP RAPORU</h2>
-                            <div style="font-size:12px; color:#555; margin-top:5px;">Uşak Doğalgaz Saha Takip Pro v2.2</div>
+                            <div style="font-size:12px; color:#555; margin-top:5px;">Uşak Doğalgaz Saha Takip Pro v2.2.1</div>
                         </div>
                         <div class="pdf-header-right">
                             <div id="pdfRaporTarihi"></div>
@@ -464,7 +464,7 @@
             </div>
             
             <div class="copyright-box">
-                <b>Saha Takip Pro</b> | Versiyon: <span id="verBilgi">2.2.0</span><br>
+                <b>Saha Takip Pro</b> | Versiyon: <span id="verBilgi">2.2.1</span><br>
                 Tasarım ve Kodlama: <b>Hasan Sertaç Teper</b> © 2026<br>
                 <small>Tüm hakları saklıdır. İzinsiz çoğaltılamaz ve dağıtılamaz.</small>
             </div>
@@ -475,7 +475,7 @@
 
 <script>
 let currentZoom = 0.65;
-const PROGRAM_VERSION = "2.2.0"; 
+const PROGRAM_VERSION = "2.2.1"; 
 const DEVELOPER_NAME = "Hasan Sertaç Teper";
 
 function pdfZoom(val) {
@@ -671,75 +671,81 @@ function gosterAcilProtokol(tur) {
             <li><b>Kazıyı Durdurun:</b> Çalışmayı derhal durdurun. İş makinelerini stop ettirin.</li>
             <li><b>Kıvılcım ve Ateş:</b> Sigara içmeyin, ateşle yaklaşmayın, kıvılcım çıkaracak alet kullanmayın.</li>
             <li><b>Tahliye:</b> Gaz çıkışı olan bölgeyi tahliye edin ve çevredeki insanları uzaklaştırın.</li>
+            <li><b>Araç Güvenliği:</b> Bölgedeki araçları çalıştırmayın, çalışanları uzaklaştırın.</li>
         `;
         sorular = `
-            <span style="color:#000;">1. Kazıyı yapan kim? (Belediye, TEDAŞ vb.)</span><br>
-            <span style="color:#000;">2. Borunun rengini görebiliyor musunuz?</span><br>
-            <span style="color:#000;">3. Şu an hattan aktif gaz çıkışı veya alev var mı?</span>
+            <span style="color:#000;">1. Kazıyı yapan kim? (Belediye, TEDAŞ, Şahıs vb.)</span><br>
+            <span style="color:#000;">2. Borunun rengini ve hasar boyutunu görebiliyor musunuz?</span><br>
+            <span style="color:#000;">3. Şu an hattan aktif gaz çıkışı sesi veya alev var mı?</span>
         `;
     } else if (t === "sk koku") {
         onlemler = `
-            <li><b>Kutudan Uzaklaşın:</b> Servis kutusundan güvenli bir mesafeye uzaklaşın.</li>
+            <li><b>Kutudan Uzaklaşın:</b> Servis kutusundan en az 10-15 metre güvenli bir mesafeye uzaklaşın.</li>
             <li><b>Ateş Yasağı:</b> Kesinlikle sigara içmeyin, çakmak yakmayın.</li>
-            <li><b>Pencereleri Kapatın:</b> Gazın içeri girmemesi için kutuya yakın pencereleri kapatın.</li>
-            <li><b>Uzak Durun:</b> Gaz kokusu olan alanda araç çalıştırmayın.</li>
+            <li><b>Pencereleri Kapatın:</b> Gazın bina içine girmemesi için kutuya yakın pencereleri derhal kapatın.</li>
+            <li><b>Müdahale Etmeyin:</b> Kutudaki vanayı kapatmak için dahi kutuya müdahale etmeyin, ekibimizi bekleyin.</li>
         `;
         sorular = `
-            <span style="color:#000;">1. Kutudan "fıs" şeklinde bir gaz çıkış sesi geliyor mu?</span><br>
-            <span style="color:#000;">2. Kutunun kapağı açık mı veya fiziksel bir hasar var mı?</span><br>
+            <span style="color:#000;">1. Kutudan "fıs" şeklinde veya daha gürültülü bir gaz çıkış sesi geliyor mu?</span><br>
+            <span style="color:#000;">2. Kutunun kapağı açık mı veya fiziksel bir hasar (araç çarpması vb.) var mı?</span><br>
             <span style="color:#000;">3. Koku sadece kutu başında mı yoksa sokağa yayılıyor mu?</span>
         `;
     } else if (t === "dk koku" || t === "mbk koku") {
         onlemler = `
             <li><b>Ortamı Havalandırın:</b> Pencereleri ve kapıları açarak ortamı derhal havalandırın.</li>
-            <li><b>Elektrik ve Ziller:</b> Elektrik düğmelerine dokunmayın, asansör ve kapı zillerini kullanmayın.</li>
-            <li><b>Vana Kapatma:</b> Daire girişindeki veya bina girişindeki ana vanayı derhal kapatın.</li>
-            <li><b>Tahliye:</b> Gaz kokusu yoğunsa binayı tahliye edin, komşuları sözlü uyarın.</li>
+            <li><b>Elektrik ve Ziller:</b> Elektrik düğmelerine dokunmayın, asansör ve kapı zillerini asla kullanmayın.</li>
+            <li><b>Vana Kapatma:</b> Daire girişindeki vanayı veya bina girişindeki ana vanayı derhal kapatın.</li>
+            <li><b>Tahliye:</b> Gaz kokusu yoğunsa binayı tahliye edin, komşuları bağırarak uyarın (zillerini çalmayın).</li>
+            <li><b>Telefon:</b> Telefonunuzu gaz kokusu olan ortamda değil, dışarıda kullanın.</li>
         `;
         sorular = `
-            <span style="color:#000;">1. Koku daire içinde mi yoksa bina merdiven boşluğunda mı?</span><br>
-            <span style="color:#000;">2. Binada herhangi bir tesisat çalışması veya sayaç değişimi yapıldı mı?</span><br>
-            <span style="color:#000;">3. Sayaç vanasını kapatabildiniz mi?</span>
+            <span style="color:#000;">1. Koku daire içinde mi, merdiven boşluğunda mı yoksa sayaç çevresinde mi?</span><br>
+            <span style="color:#000;">2. Binada herhangi bir tesisat çalışması veya sayaç değişimi yeni yapıldı mı?</span><br>
+            <span style="color:#000;">3. Daire/Bina vanasını güvenli şekilde kapatabildiniz mi?</span>
         `;
     } else if (t.includes("hasarı") || t.includes("hasari")) {
         onlemler = `
-            <li><b>Uzaklaşın:</b> Hasarlı bölgeden en az 50 metre uzaklaşın.</li>
-            <li><b>Kıvılcım:</b> Bölgede kesinlikle cep telefonu kullanmayın ve araç çalıştırmayın.</li>
+            <li><b>Güvenli Mesafe:</b> Hasarlı bölgeden en az 50 metre uzaklaşın ve kimseyi yaklaştırmayın.</li>
+            <li><b>Elektronik Yasağı:</b> Bölgede kesinlikle cep telefonu kullanmayın ve araç çalıştırmayın.</li>
+            <li><b>Ateş:</b> Çevredeki ateş kaynaklarını (mangallık vb.) derhal söndürtün.</li>
         `;
         sorular = `
-            <span style="color:#000;">1. Hasar gören ekipman nedir? (Kutu mu, boru mu?)</span><br>
+            <span style="color:#000;">1. Hasar gören ekipman nedir? (Sokaktaki boru mu, bina girişi mi?)</span><br>
             <span style="color:#000;">2. Hasar yerinde alevlenme veya aşırı gürültülü gaz çıkışı var mı?</span>
         `;
     } else if (t.includes("zehirlenme")) {
         onlemler = `
-            <li><b>Havalandırma:</b> Tüm pencere ve kapıları açın.</li>
-            <li><b>Tahliye:</b> Etkilenen kişileri hemen temiz havaya çıkarın.</li>
-            <li><b>112 Acil:</b> 112 Sağlık ekiplerini derhal arayın.</li>
+            <li><b>Havalandırma:</b> Tüm pencere ve kapıları sonuna kadar açın.</li>
+            <li><b>Tahliye:</b> Etkilenen kişileri hemen temiz havaya çıkarın, kıyafetlerini gevşetin.</li>
+            <li><b>Tıbbi Yardım:</b> 112 Sağlık ekiplerini derhal arayın (eğer aranmadıysa).</li>
+            <li><b>Cihazı Kapatın:</b> Şofben veya kombi vanasını derhal kapatın.</li>
         `;
         sorular = `
-            <span style="color:#000;">1. Kaç kişi etkilendi? Bilinçleri açık mı?</span><br>
-            <span style="color:#000;">2. Zehirlenme hangi cihazdan kaynaklanmış olabilir?</span>
+            <span style="color:#000;">1. Kaç kişi etkilendi? Bilinç durumları nasıl?</span><br>
+            <span style="color:#000;">2. Olayın olduğu ortamda baca yerinden çıkmış mı veya koku var mı?</span>
         `;
     } else if (t.includes("intihar")) {
         onlemler = `
-            <li><b>112 ve Polis:</b> Derhal Emniyet ve İtfaiye ekiplerine bilgi verin.</li>
-            <li><b>Müdahale Etmeyin:</b> İçeride gaz birikmiş olabilir, kıvılcım çıkaracak hiçbir işlem yapmayın.</li>
+            <li><b>Müdahale Etmeyin:</b> Kapıyı zorlamayın veya içeri girmeyin, içeride gaz birikmiş olabilir.</li>
+            <li><b>Güvenlik:</b> Derhal Emniyet (155) ve İtfaiye (110) ekiplerine bilgi verin.</li>
+            <li><b>Elektrik:</b> Bina ana sigortasından elektriği kesin (kıvılcım çıkarmadan, şalteri değil sigortayı sökerek).</li>
         `;
         sorular = `
-            <span style="color:#000;">1. Şahıs şu an daire içinde mi?</span><br>
-            <span style="color:#000;">2. Dışarıdan gaz kokusu geliyor mu?</span>
+            <span style="color:#000;">1. Şahıs şu an daire içinde mi ve yalnız mı?</span><br>
+            <span style="color:#000;">2. Kapı altından veya deliklerden yoğun gaz kokusu geliyor mu?</span>
         `;
     } else if (t.includes("yangın") || t.includes("patlama")) {
          onlemler = `
             <li><b>İtfaiye:</b> Derhal 112 İtfaiye ekiplerini arayın.</li>
-            <li><b>Tahliye:</b> Binayı ve çevre binaları derhal boşaltın.</li>
+            <li><b>Ana Vana:</b> Mümkünse bina dışındaki ana vanayı (EKB) kapatın.</li>
+            <li><b>Tahliye:</b> Binayı ve bitişik binaları sarsıntıya veya yangına karşı boşaltın.</li>
         `;
         sorular = `
-            <span style="color:#000;">1. Yangın/Patlama bina içinde mi yoksa sokakta mı?</span><br>
-            <span style="color:#000;">2. Yaralı veya içeride mahsur kalan birileri var mı?</span>
+            <span style="color:#000;">1. Yangın veya patlama tam olarak nerede (Daire, Bodrum, Sokak)?</span><br>
+            <span style="color:#000;">2. Yaralı veya bina içinde mahsur kalan birileri var mı?</span>
         `;
     } else {
-        onlemler = `<li><b>Güvenlik:</b> Gaz kokusu olan alandan uzak durun.</li><li><b>Havalandırma:</b> Kapalı alanları havalandırın.</li>`;
+        onlemler = `<li><b>Güvenlik:</b> Gaz kokusu olan alandan uzak durun.</li><li><b>Havalandırma:</b> Kapalı alanları havalandırın.</li><li><b>Vana:</b> Vanayı kapatın.</li>`;
         sorular = `<span style="color:#000;">1. Sorun tam olarak nedir?</span><br><span style="color:#000;">2. Adresinizi teyit edin.</span>`;
     }
 
