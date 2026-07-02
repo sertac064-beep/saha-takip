@@ -477,6 +477,7 @@
 let currentZoom = 0.65;
 const PROGRAM_VERSION = "2.2.1"; 
 const DEVELOPER_NAME = "Hasan Sertaç Teper";
+const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbzcw2CDZNfoMSG3Rfeg0mMgJ4ZSDUiQOjOp11FR164ku__YO5y4tZrF6YCHz1vSFC_L0Q/exec";
 
 function pdfZoom(val) {
     currentZoom += val;
@@ -958,17 +959,81 @@ function adresBirlestir() {
 }
 
 let editIndex = -1;
-function kaydet() { 
-    let simdi = new Date(); let liste = JSON.parse(localStorage.ihbarData || "[]"); let sokakAdi = document.getElementById('sokakInp').value;
+
+// async kelimesini ekledik ki arka planda Google ile haberleşebilsin
+async function kaydet() { 
+    let simdi = new Date(); 
+    let liste = JSON.parse(localStorage.ihbarData || "[]"); 
+    let sokakAdi = document.getElementById('sokakInp').value;
     adresBirlestir();
+    
+    // Veri paketini hazırlıyoruz
     let k = { 
-        id: (editIndex === -1) ? Date.now() : liste[editIndex].id, tarihMs: (editIndex === -1) ? simdi.getTime() : liste[editIndex].tarihMs, tarih: (editIndex === -1) ? simdi.toLocaleString('tr-TR') : liste[editIndex].tarih, 
-        ad: document.getElementById('ad').value || "-", telefon: document.getElementById('telefon').value || "-", aboneNo: document.getElementById('aboneNo').value || "-", ihbarKaynagi: document.getElementById('ihbarKaynagi').value || "-", 
-        ekip: document.getElementById('ekipSecimi').value || "Belirsiz", adres: document.getElementById('adres').value || "-", tur: document.getElementById('tur').value || "Diğer", 
-        aciklama: document.getElementById('aciklama').value || "-", durum: (editIndex === -1) ? (aktifAyarlar.durumListesi[0] || "Bekliyor") : liste[editIndex].durum, konum: seciliKonum
+        id: (editIndex === -1) ? Date.now() : liste[editIndex].id, 
+        tarihMs: (editIndex === -1) ? simdi.getTime() : liste[editIndex].tarihMs, 
+        tarih: (editIndex === -1) ? simdi.toLocaleString('tr-TR') : liste[editIndex].tarih,
+        ad: document.getElementById('ad').value || "-", 
+        telefon: document.getElementById('telefon').value || "-", 
+        aboneNo: document.getElementById('aboneNo').value || "-", 
+        ihbarKaynagi: document.getElementById('ihbarKaynagi').value || "-",
+        ekip: document.getElementById('ekipSecimi').value || "Belirsiz", 
+        adres: document.getElementById('adres').value || "-", 
+        tur: document.getElementById('tur').value || "Diğer",
+        aciklama: document.getElementById('aciklama').value || "-", 
+        durum: (editIndex === -1) ? (aktifAyarlar.durumListesi[0] || "Bekliyor") : liste[editIndex].durum, 
+        konum: seciliKonum
     };
-    if(editIndex === -1) { liste.push(k); } else { let idx = liste.findIndex(x => x.id === k.id); if(idx !== -1) liste[idx] = k; editIndex = -1; } 
-    sokakHafizayaEkle(sokakAdi); localStorage.ihbarData = JSON.stringify(liste); temizle(); sortAsc = false; goster();
+
+    // 1. AŞAMA: Yerel Hafızaya (Cihaza) Kaydet (İnternet olmasa da çalışır)
+    if(editIndex === -1) { 
+        liste.push(k); 
+    } else { 
+        let idx = liste.findIndex(x => x.id === k.id); 
+        if(idx !== -1) liste[idx] = k; 
+        editIndex = -1; 
+    } 
+    sokakHafizayaEkle(sokakAdi); 
+    localStorage.ihbarData = JSON.stringify(liste); 
+    
+    // Arayüzü hemen temizle ve güncel listeyi göster (Kullanıcı beklemez)
+    temizle(); 
+    sortAsc = false; 
+    goster();
+
+    // 2. AŞAMA: Google Sheets'e Bulut Eşitlemesi Yap (Arka Planda)
+    try {
+        let bulutVerisi = {
+            ad: k.ad,
+            telefon: k.telefon,
+            aboneNo: k.aboneNo,
+            adres: k.adres,
+            tur: k.tur,
+            ekip: k.ekip,
+            kaynak: k.ihbarKaynagi, 
+            aciklama: k.aciklama,
+            konum: k.konum,
+            tarih: k.tarih,
+            durum: k.durum
+        };
+
+        const response = await fetch(APPS_SCRIPT_URL, {
+            method: "POST",
+            headers: {
+                "Content-Type": "text/plain;charset=utf-8"
+            },
+            body: JSON.stringify(bulutVerisi)
+        });
+
+        const resData = await response.json();
+        if(resData.status !== "SUCCESS") {
+            console.error("E-Tabloya yazarken hata oluştu:", resData.message);
+        } else {
+            console.log("Sistem: İhbar başarıyla buluta kopyalandı.");
+        }
+    } catch (err) {
+        // Saha şartlarında internet koparsa program donmaz, bu hata mesajını arkaya yazar.
+        console.error("Bağlantı hatası! Veri yerelde güvende ama şu an buluta atılamadı:", err);
+    }
 }
 
 function hızlıDuzenle(id, alan) {
@@ -1125,4 +1190,4 @@ function pdfIndir() {
 }
 </script>
 </body>
-</html>
+</html
